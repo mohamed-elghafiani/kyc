@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database (REQUIRED)
+  postgres:
+    image: postgres:15-alpine
+    container_name: kyc-postgres
+    environment:
+      POSTGRES_DB: kyc_db
+      POSTGRES_USER: kyc_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - kyc-network
+    restart: unless-stopped
+
+  # FastAPI Application
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: kyc-api
+    environment:
+      DATABASE_URL: postgresql://kyc_user:${DB_PASSWORD}@postgres:5432/kyc_db
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/data/documents
+      REDIS_ENABLED: "false"
+      SECRET_KEY: ${SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - kyc-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  kyc-network:
+    driver: bridge
